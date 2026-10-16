@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'models/user.dart';
 import 'models/bank_account.dart';
+import 'models/library_item.dart';
 
 void main() {
   runApp(const MyApp());
@@ -55,6 +56,16 @@ class MyHomePage extends StatelessWidget {
                 );
               },
               child: const Text('Bank Accounts'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LibraryPage()),
+                );
+              },
+              child: const Text('Library'),
             ),
           ],
         ),
@@ -148,6 +159,74 @@ class _AccountsPageState extends State<AccountsPage> {
             title: Text(account.holderName),
             subtitle: Text('Account: $accountDisplay\nBranch: $branchDisplay'),
             isThreeLine: true,
+          );
+        },
+      ),
+    );
+  }
+}
+
+class LibraryPage extends StatefulWidget {
+  const LibraryPage({super.key});
+
+  @override
+  State<LibraryPage> createState() => _LibraryPageState();
+}
+
+class _LibraryPageState extends State<LibraryPage> {
+  final Library library = Library();
+  final User alice = User(name: 'Alice', age: 30);
+
+  @override
+  void initState() {
+    super.initState();
+
+    final book1 = Book(title: 'Harry Potter', author: 'JK Rowling', publishDate: DateTime(1995, 5, 1));
+    final mag1 = Magazine(title: 'Super Magazine', issueNumber: '42');
+    final book2 = Book(title: 'Book 2', author: 'John Smith', publishDate: DateTime(2023, 1, 15));
+    final invalidItem = Book(title: '  ');
+    
+    library.addItem(book1);
+    library.addItem(mag1);
+    library.addItem(book2);
+    library.addItem(invalidItem);
+
+    library.borrowItem(book1, alice, DateTime.now().add(const Duration(days: 14)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = library.items;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Library'),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+      ),
+      body: ListView.builder(
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          final item = items[index];
+          final String status = item.borrower != null 
+              ? 'Borrowed by ${item.borrower!.name}' 
+              : 'Available';
+              
+          return ListTile(
+            title: Text(item.title),
+            subtitle: Text('Author: ${item.author ?? 'Unknown'}\nStatus: $status'),
+            isThreeLine: true,
+            trailing: ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  if (item.borrower != null) {
+                    library.returnItem(item);
+                  } else {
+                    library.borrowItem(item, alice, DateTime.now().add(const Duration(days: 14)));
+                  }
+                });
+              },
+              child: Text(item.borrower != null ? 'Return' : 'Borrow'),
+            ),
           );
         },
       ),
