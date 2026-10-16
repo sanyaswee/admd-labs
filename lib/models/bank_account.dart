@@ -9,4 +9,13 @@ class BankAccount {
   void initializeAccount(String number) {
     accountNumber = number;
   }
+
+  bool hasAccountNumber() {
+    try {
+      accountNumber;
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 }
