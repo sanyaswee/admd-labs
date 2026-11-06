@@ -10,9 +10,9 @@ class TodoScreen extends StatefulWidget {
 
 class _TodoScreenState extends State<TodoScreen> {
   final _items = <Todo>[
-    Todo('Task #1'),
-    Todo('Task #2'),
-    Todo('Task #3'),
+    Todo('Task #1', id: '1'),
+    Todo('Task #2', id: '2'),
+    Todo('Task #3', id: '3'),
   ];
   final _input = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -42,6 +42,27 @@ class _TodoScreenState extends State<TodoScreen> {
         );
       }
     });
+  }
+
+  void _removeTodo(int index, Todo todo) {
+    setState(() {
+      _items.removeWhere((t) => t.id == todo.id);
+    });
+
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('"${todo.title}" deleted'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () {
+            setState(() {
+              _items.insert(index, todo);
+            });
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -84,15 +105,27 @@ class _TodoScreenState extends State<TodoScreen> {
                     itemCount: _items.length,
                     itemBuilder: (context, index) {
                       final item = _items[index];
-                      return TodoTile(
-                        todo: item,
-                        onChanged: (bool? value) {
-                          if (value != null) {
-                            setState(() {
-                              item.done = value;
-                            });
-                          }
-                        },
+                      return Dismissible(
+                        key: ValueKey(item.id),
+                        direction: DismissDirection.endToStart,
+                        onDismissed: (_) => _removeTodo(index, item),
+                        background: Container(
+                          color: Colors.red,
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 20),
+                          child: const Icon(Icons.delete, color: Colors.white),
+                        ),
+                        child: TodoTile(
+                          todo: item,
+                          onChanged: (bool? value) {
+                            if (value != null) {
+                              setState(() {
+                                item.done = value;
+                              });
+                            }
+                          },
+                          onDelete: () => _removeTodo(index, item),
+                        ),
                       );
                     },
                   ),
@@ -106,35 +139,34 @@ class _TodoScreenState extends State<TodoScreen> {
 class TodoTile extends StatelessWidget {
   final Todo todo;
   final ValueChanged<bool?> onChanged;
+  final VoidCallback onDelete;
 
   const TodoTile({
     super.key,
     required this.todo,
     required this.onChanged,
+    required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Stack(
-        children: [
-          ListTile(
-            leading: Checkbox(
-              value: todo.done,
-              onChanged: onChanged,
-            ),
-            title: Text(
-              todo.title,
-              style: TextStyle(
-                decoration: todo.done ? TextDecoration.lineThrough : TextDecoration.none,
-              ),
-            ),
+      child: ListTile(
+        leading: Checkbox(
+          value: todo.done,
+          onChanged: onChanged,
+        ),
+        title: Text(
+          todo.title,
+          style: TextStyle(
+            decoration: todo.done ? TextDecoration.lineThrough : TextDecoration.none,
           ),
-          Positioned(
-            right: 8,
-            top: 8,
-            child: Container(
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: todo.done ? Colors.green.shade100 : Colors.orange.shade100,
@@ -148,8 +180,13 @@ class TodoTile extends StatelessWidget {
                 ),
               ),
             ),
-          ),
-        ],
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+              onPressed: onDelete,
+              tooltip: 'Delete',
+            ),
+          ],
+        ),
       ),
     );
   }
