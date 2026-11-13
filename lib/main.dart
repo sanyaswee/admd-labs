@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'models/user.dart';
 import 'models/bank_account.dart';
 import 'models/library_item.dart';
+import 'screens/todo_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -66,6 +67,16 @@ class MyHomePage extends StatelessWidget {
                 );
               },
               child: const Text('Library'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const TodoScreen()),
+                );
+              },
+              child: const Text('Todo List'),
             ),
           ],
         ),
