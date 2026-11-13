@@ -10,9 +10,9 @@ class TodoScreen extends StatefulWidget {
 
 class _TodoScreenState extends State<TodoScreen> {
   final _items = <Todo>[
-    Todo('Task #1', id: '1'),
-    Todo('Task #2', id: '2'),
-    Todo('Task #3', id: '3'),
+    const Todo(userId: 1, id: 1, title: 'Task #1', completed: false),
+    const Todo(userId: 1, id: 2, title: 'Task #2', completed: false),
+    const Todo(userId: 1, id: 3, title: 'Task #3', completed: false),
   ];
   final _input = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -29,7 +29,12 @@ class _TodoScreenState extends State<TodoScreen> {
     if (text.isEmpty) return;
 
     setState(() {
-      _items.add(Todo(text));
+      _items.add(Todo(
+        userId: 1,
+        id: DateTime.now().millisecondsSinceEpoch,
+        title: text,
+        completed: false,
+      ));
     });
     _input.clear();
 
@@ -120,7 +125,7 @@ class _TodoScreenState extends State<TodoScreen> {
                           onChanged: (bool? value) {
                             if (value != null) {
                               setState(() {
-                                item.done = value;
+                                _items[index] = item.copyWith(completed: value);
                               });
                             }
                           },
@@ -154,13 +159,13 @@ class TodoTile extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: ListTile(
         leading: Checkbox(
-          value: todo.done,
+          value: todo.completed,
           onChanged: onChanged,
         ),
         title: Text(
           todo.title,
           style: TextStyle(
-            decoration: todo.done ? TextDecoration.lineThrough : TextDecoration.none,
+            decoration: todo.completed ? TextDecoration.lineThrough : TextDecoration.none,
           ),
         ),
         trailing: Row(
@@ -169,14 +174,14 @@ class TodoTile extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: todo.done ? Colors.green.shade100 : Colors.orange.shade100,
+                color: todo.completed ? Colors.green.shade100 : Colors.orange.shade100,
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
-                todo.done ? 'Done' : 'Pending',
+                todo.completed ? 'Done' : 'Pending',
                 style: TextStyle(
                   fontSize: 10,
-                  color: todo.done ? Colors.green.shade800 : Colors.orange.shade800,
+                  color: todo.completed ? Colors.green.shade800 : Colors.orange.shade800,
                 ),
               ),
             ),
