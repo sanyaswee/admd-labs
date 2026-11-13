@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'models/user.dart';
 import 'models/bank_account.dart';
 import 'models/library_item.dart';
+import 'models/todo.dart';
 import 'screens/todo_screen.dart';
 
 void main() {
+  const a = Todo(userId: 1, id: 101, title: 'abc', completed: false);
+  const b = Todo(userId: 1, id: 101, title: 'abc', completed: false);
+  print('a == b: ${a == b}');
+
   runApp(const MyApp());
 }
 
