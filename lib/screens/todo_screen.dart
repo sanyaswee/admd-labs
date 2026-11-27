@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../models/todo.dart';
-import '../todos/cubit/todo_cubit.dart';
-import '../todos/cubit/todo_state.dart';
+import '../todos/bloc/todo_bloc.dart';
+import '../todos/bloc/todo_event.dart';
+import '../todos/bloc/todo_state.dart';
 
 class TodoScreen extends StatefulWidget {
   const TodoScreen({super.key});
@@ -26,7 +27,7 @@ class _TodoScreenState extends State<TodoScreen> {
     final text = _input.text.trim();
     if (text.isEmpty) return;
 
-    context.read<TodoCubit>().add(text);
+    context.read<TodoBloc>().add(AddTodo(text));
     _input.clear();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -41,7 +42,7 @@ class _TodoScreenState extends State<TodoScreen> {
   }
 
   void _handleRemove(BuildContext context, int index, Todo todo) {
-    context.read<TodoCubit>().remove(todo.id);
+    context.read<TodoBloc>().add(RemoveTodo(todo.id));
 
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -50,7 +51,7 @@ class _TodoScreenState extends State<TodoScreen> {
         action: SnackBarAction(
           label: 'Undo',
           onPressed: () {
-            context.read<TodoCubit>().restore(index, todo);
+            context.read<TodoBloc>().add(RestoreTodo(index, todo));
           },
         ),
       ),
@@ -67,12 +68,12 @@ class _TodoScreenState extends State<TodoScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Fetch /todos',
-            onPressed: () => context.read<TodoCubit>().load(useInvalidPath: false),
+            onPressed: () => context.read<TodoBloc>().add(const LoadTodos(useInvalidPath: false)),
           ),
           IconButton(
             icon: const Icon(Icons.error_outline, color: Colors.redAccent),
             tooltip: 'Test Invalid Path (/nope)',
-            onPressed: () => context.read<TodoCubit>().load(useInvalidPath: true),
+            onPressed: () => context.read<TodoBloc>().add(const LoadTodos(useInvalidPath: true)),
           ),
         ],
       ),
@@ -85,7 +86,7 @@ class _TodoScreenState extends State<TodoScreen> {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => context.read<TodoCubit>().load(useInvalidPath: false),
+                    onPressed: () => context.read<TodoBloc>().add(const LoadTodos(useInvalidPath: false)),
                     icon: const Icon(Icons.cloud_download),
                     label: const Text('Fetch /todos'),
                   ),
@@ -97,7 +98,7 @@ class _TodoScreenState extends State<TodoScreen> {
                       backgroundColor: Colors.red.shade100,
                       foregroundColor: Colors.red.shade900,
                     ),
-                    onPressed: () => context.read<TodoCubit>().load(useInvalidPath: true),
+                    onPressed: () => context.read<TodoBloc>().add(const LoadTodos(useInvalidPath: true)),
                     icon: const Icon(Icons.bug_report),
                     label: const Text('Test /nope'),
                   ),
@@ -132,7 +133,7 @@ class _TodoScreenState extends State<TodoScreen> {
 
           // Main Content List or Error State managed by BlocBuilder
           Expanded(
-            child: BlocBuilder<TodoCubit, TodoState>(
+            child: BlocBuilder<TodoBloc, TodoState>(
               builder: (context, state) {
                 if (state.loading && state.todos.isEmpty) {
                   return const Center(child: CircularProgressIndicator());
@@ -159,7 +160,7 @@ class _TodoScreenState extends State<TodoScreen> {
                           ),
                           const SizedBox(height: 12),
                           ElevatedButton(
-                            onPressed: () => context.read<TodoCubit>().load(useInvalidPath: false),
+                            onPressed: () => context.read<TodoBloc>().add(const LoadTodos(useInvalidPath: false)),
                             child: const Text('Retry /todos'),
                           ),
                         ],
@@ -189,7 +190,7 @@ class _TodoScreenState extends State<TodoScreen> {
                       ),
                       child: TodoTile(
                         todo: item,
-                        onChanged: (_) => context.read<TodoCubit>().toggle(item.id),
+                        onChanged: (_) => context.read<TodoBloc>().add(ToggleTodo(item.id)),
                         onDelete: () => _handleRemove(context, index, item),
                       ),
                     );
