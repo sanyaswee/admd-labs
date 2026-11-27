@@ -28,9 +28,12 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
   void _onAdd(AddTodo event, Emitter<TodoState> emit) {
     final text = event.title.trim();
     if (text.isEmpty) return;
+    final int nextId = state.todos.isEmpty
+        ? 1
+        : state.todos.map((t) => t.id).reduce((a, b) => a > b ? a : b) + 1;
     final newTodo = Todo(
       userId: 1,
-      id: DateTime.now().millisecondsSinceEpoch,
+      id: nextId,
       title: text,
       completed: false,
     );
