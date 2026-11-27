@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import '../api/todo_api.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../models/todo.dart';
+import '../todos/cubit/todo_cubit.dart';
+import '../todos/cubit/todo_state.dart';
 
 class TodoScreen extends StatefulWidget {
   const TodoScreen({super.key});
@@ -10,20 +12,8 @@ class TodoScreen extends StatefulWidget {
 }
 
 class _TodoScreenState extends State<TodoScreen> {
-  final List<Todo> _items = [];
-  final TodoApi _api = TodoApi();
-
   final TextEditingController _input = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-
-  bool _isLoading = false;
-  String? _errorMessage;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchTodos(useInvalidPath: false);
-  }
 
   @override
   void dispose() {
@@ -32,50 +22,11 @@ class _TodoScreenState extends State<TodoScreen> {
     super.dispose();
   }
 
-  Future<void> _fetchTodos({required bool useInvalidPath}) async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-      if (useInvalidPath) {
-        _items.clear();
-      }
-    });
-
-    try {
-      final todos = await _api.fetchTodos(
-        useInvalidPath: useInvalidPath,
-        maxAttempts: 4,
-      );
-
-      if (mounted) {
-        setState(() {
-          _items.clear();
-          _items.addAll(todos);
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = e.toString();
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  void _add() {
+  void _handleAdd(BuildContext context) {
     final text = _input.text.trim();
     if (text.isEmpty) return;
 
-    setState(() {
-      _items.add(Todo(
-        userId: 1,
-        id: DateTime.now().millisecondsSinceEpoch,
-        title: text,
-        completed: false,
-      ));
-    });
+    context.read<TodoCubit>().add(text);
     _input.clear();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -89,10 +40,8 @@ class _TodoScreenState extends State<TodoScreen> {
     });
   }
 
-  void _removeTodo(int index, Todo todo) {
-    setState(() {
-      _items.removeWhere((t) => t.id == todo.id);
-    });
+  void _handleRemove(BuildContext context, int index, Todo todo) {
+    context.read<TodoCubit>().remove(todo.id);
 
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -101,9 +50,7 @@ class _TodoScreenState extends State<TodoScreen> {
         action: SnackBarAction(
           label: 'Undo',
           onPressed: () {
-            setState(() {
-              _items.insert(index, todo);
-            });
+            context.read<TodoCubit>().restore(index, todo);
           },
         ),
       ),
@@ -120,12 +67,12 @@ class _TodoScreenState extends State<TodoScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Fetch /todos',
-            onPressed: () => _fetchTodos(useInvalidPath: false),
+            onPressed: () => context.read<TodoCubit>().load(useInvalidPath: false),
           ),
           IconButton(
             icon: const Icon(Icons.error_outline, color: Colors.redAccent),
             tooltip: 'Test Invalid Path (/nope)',
-            onPressed: () => _fetchTodos(useInvalidPath: true),
+            onPressed: () => context.read<TodoCubit>().load(useInvalidPath: true),
           ),
         ],
       ),
@@ -138,7 +85,7 @@ class _TodoScreenState extends State<TodoScreen> {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: _isLoading ? null : () => _fetchTodos(useInvalidPath: false),
+                    onPressed: () => context.read<TodoCubit>().load(useInvalidPath: false),
                     icon: const Icon(Icons.cloud_download),
                     label: const Text('Fetch /todos'),
                   ),
@@ -150,9 +97,9 @@ class _TodoScreenState extends State<TodoScreen> {
                       backgroundColor: Colors.red.shade100,
                       foregroundColor: Colors.red.shade900,
                     ),
-                    onPressed: _isLoading ? null : () => _fetchTodos(useInvalidPath: true),
-                    icon: const Icon(Icons.error),
-                    label: const Text('404'),
+                    onPressed: () => context.read<TodoCubit>().load(useInvalidPath: true),
+                    icon: const Icon(Icons.bug_report),
+                    label: const Text('Test /nope'),
                   ),
                 ),
               ],
@@ -171,81 +118,85 @@ class _TodoScreenState extends State<TodoScreen> {
                       labelText: 'New Todo Title',
                       border: OutlineInputBorder(),
                     ),
-                    onSubmitted: (_) => _add(),
+                    onSubmitted: (_) => _handleAdd(context),
                   ),
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton(
-                  onPressed: _add,
+                  onPressed: () => _handleAdd(context),
                   child: const Text('Add'),
                 ),
               ],
             ),
           ),
 
-          // Main Content List or Error State
+          // Main Content List or Error State managed by BlocBuilder
           Expanded(
-            child: _isLoading && _items.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : _errorMessage != null && _items.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.error, color: Colors.red, size: 48),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Failed to fetch todos:',
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _errorMessage!,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(color: Colors.redAccent),
-                              ),
-                              const SizedBox(height: 12),
-                              ElevatedButton(
-                                onPressed: () => _fetchTodos(useInvalidPath: false),
-                                child: const Text('Retry /todos'),
-                              ),
-                            ],
+            child: BlocBuilder<TodoCubit, TodoState>(
+              builder: (context, state) {
+                if (state.loading && state.todos.isEmpty) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (state.errorMessage != null && state.todos.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error, color: Colors.red, size: 48),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Failed to fetch todos:',
+                            style: Theme.of(context).textTheme.titleMedium,
                           ),
-                        ),
-                      )
-                    : _items.isEmpty
-                        ? const Center(child: Text('No todos available!'))
-                        : ListView.builder(
-                            controller: _scrollController,
-                            itemCount: _items.length,
-                            itemBuilder: (context, index) {
-                              final item = _items[index];
-                              return Dismissible(
-                                key: ValueKey(item.id),
-                                direction: DismissDirection.endToStart,
-                                onDismissed: (_) => _removeTodo(index, item),
-                                background: Container(
-                                  color: Colors.red,
-                                  alignment: Alignment.centerRight,
-                                  padding: const EdgeInsets.only(right: 20),
-                                  child: const Icon(Icons.delete, color: Colors.white),
-                                ),
-                                child: TodoTile(
-                                  todo: item,
-                                  onChanged: (bool? value) {
-                                    if (value != null) {
-                                      setState(() {
-                                        _items[index] = item.copyWith(completed: value);
-                                      });
-                                    }
-                                  },
-                                  onDelete: () => _removeTodo(index, item),
-                                ),
-                              );
-                            },
+                          const SizedBox(height: 4),
+                          Text(
+                            state.errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.redAccent),
                           ),
+                          const SizedBox(height: 12),
+                          ElevatedButton(
+                            onPressed: () => context.read<TodoCubit>().load(useInvalidPath: false),
+                            child: const Text('Retry /todos'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                if (state.todos.isEmpty) {
+                  return const Center(child: Text('No todos available!'));
+                }
+
+                return ListView.builder(
+                  controller: _scrollController,
+                  itemCount: state.todos.length,
+                  itemBuilder: (context, index) {
+                    final item = state.todos[index];
+                    return Dismissible(
+                      key: ValueKey(item.id),
+                      direction: DismissDirection.endToStart,
+                      onDismissed: (_) => _handleRemove(context, index, item),
+                      background: Container(
+                        color: Colors.red,
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 20),
+                        child: const Icon(Icons.delete, color: Colors.white),
+                      ),
+                      child: TodoTile(
+                        todo: item,
+                        onChanged: (_) => context.read<TodoCubit>().toggle(item.id),
+                        onDelete: () => _handleRemove(context, index, item),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),

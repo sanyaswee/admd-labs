@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'models/user.dart';
 import 'models/bank_account.dart';
 import 'models/library_item.dart';
 import 'models/todo.dart';
 import 'screens/todo_screen.dart';
+import 'todos/cubit/todo_cubit.dart';
 
 void main() {
   const a = Todo(userId: 1, id: 101, title: 'abc', completed: false);
@@ -78,7 +80,12 @@ class MyHomePage extends StatelessWidget {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const TodoScreen()),
+                  MaterialPageRoute(
+                    builder: (context) => BlocProvider(
+                      create: (_) => TodoCubit()..load(),
+                      child: const TodoScreen(),
+                    ),
+                  ),
                 );
               },
               child: const Text('Todo List'),
